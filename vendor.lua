@@ -49,20 +49,20 @@ vendor.on_receive_fields_owner = function(pos, formname, fields, sender)
 
     local itemstack = inv_self:get_stack("item",1)
     local itemname=""
-	
+
 	if not( number == nil or number < 1 or number > 99) then
         meta:set_int("number", number)
 	end
-    
+
 	if not( cost == nil or cost < 1 or cost > 99) then
 		meta:set_int("cost", cost)
 	end
-    
+
     if( itemstack and itemstack:get_name() ) then
         itemname=itemstack:get_name()
     end
 	meta:set_string("itemname", itemname)
-    
+
     vendor.set_formspec(pos, sender)
 end
 
@@ -70,17 +70,17 @@ vendor.on_receive_fields_customer = function(pos, formname, fields, sender)
     if not fields.save then
         return
     end
-    
+
 	local node = minetest.get_node(pos)
 	local meta = minetest.get_meta(pos)
     local number = meta:get_int("number")
     local cost = meta:get_int("cost")
     local itemname=meta:get_string("itemname")
     local buysell =  "sell"
-	if ( node.name == "vendor:depositor" ) then	
+	if ( node.name == "vendor:depositor" ) then
 		buysell = "buy"
 	end
-	
+
 	if ( number == nil or number < 1 or number > 99) then
 		return
 	end
@@ -90,15 +90,15 @@ vendor.on_receive_fields_customer = function(pos, formname, fields, sender)
 	if ( itemname == nil or itemname=="") then
 		return
 	end
-    
+
     local chest = minetest.get_node({x=pos.x,y=pos.y-1,z=pos.z})
     if chest.name=="default:chest_locked" and sender and sender:is_player() then
         local chest_meta = minetest.get_meta({x=pos.x,y=pos.y-1,z=pos.z})
         local chest_inv = chest_meta:get_inventory()
         local player_inv = sender:get_inventory()
         if ( chest_meta:get_string("owner") == meta:get_string("owner") and chest_inv ~= nil and player_inv ~= nil ) then
-            
-            local stack = {name=itemname, count=number, wear=0, metadata=""} 
+
+            local stack = {name=itemname, count=number, wear=0, metadata=""}
             local price = {name="default:gold_ingot", count=cost, wear=0, metadata=""}
             if buysell == "sell" then
                 if chest_inv:contains_item("main", stack) and player_inv:contains_item("main", price) and
@@ -138,9 +138,46 @@ vendor.on_receive_fields_customer = function(pos, formname, fields, sender)
         end
     end
 
-    
+
     --do transaction here
-    
+
+end
+
+-- for now not use in actual buy/sell operation. later after tested.
+vendor.is_operational = function(pos)
+    local node = minetest.get_node(pos)
+    local meta = minetest.get_meta(pos)
+    local number = meta:get_int("number")
+    local cost = meta:get_int("cost")
+    local itemname=meta:get_string("itemname")
+    local buysell =  "sell"
+    if node.name == "vendor:depositor" then
+        buysell = "buy"
+    end
+    local stack = {name=itemname, count=number, wear=0, metadata=""}
+    local price = {name="default:gold_ingot", count=cost, wear=0, metadata=""}
+
+    local chest = minetest.get_node({x=pos.x,y=pos.y-1,z=pos.z})
+    if chest.name ~= "default:chest_locked" then
+        return false
+    end
+
+    local chest_meta = minetest.get_meta({x=pos.x,y=pos.y-1,z=pos.z})
+    local chest_inv = chest_meta:get_inventory()
+
+    if buysell == "sell" then
+        if  chest_inv:contains_item("main", stack) and
+            chest_inv:room_for_item("main", price) then
+                return true
+        end
+    else
+        if  chest_inv:contains_item("main", price) and
+            chest_inv:room_for_item("main", stack) then
+                return true
+        end
+    end
+
+    return false
 end
 
 vendor.after_place_node = function(pos, placer)
@@ -151,7 +188,7 @@ vendor.after_place_node = function(pos, placer)
     local player_name = placer:get_player_name()
     inv:set_size("item", 1)
     inv:set_size("gold", 1)
-    
+
     inv:set_stack( "gold", 1, "default:gold_ingot" )
 
 	meta:set_string("infotext", player_name.." - "..description)
@@ -160,7 +197,7 @@ vendor.after_place_node = function(pos, placer)
 	meta:set_string("itemname", "")
 
 	meta:set_string("owner", placer:get_player_name() or "")
-    
+
     vendor.set_formspec(pos, placer)
 end
 
@@ -174,6 +211,10 @@ vendor.can_dig = function(pos, player)
             if name == owner_chest then
                 return true --chest owner can dig shop
             end
+            -- not functional vendor machine is not protected by locked chest
+            if not vendor.is_operational(pos) then
+                return true
+            end
          end
          return false
     else
@@ -184,7 +225,7 @@ end
 vendor.on_receive_fields = function(pos, formname, fields, sender)
 	local meta = minetest.get_meta(pos)
 	local owner = meta:get_string("owner")
-    
+
 	if sender:get_player_name() == owner then
 		vendor.on_receive_fields_owner(pos, formname, fields, sender)
     else
@@ -192,7 +233,7 @@ vendor.on_receive_fields = function(pos, formname, fields, sender)
 	end
 end
 
-vendor.sound_vend = function(pos) 
+vendor.sound_vend = function(pos)
 	minetest.sound_play("vendor_vend", {pos = pos, gain = 1.0, max_hear_distance = 5,})
 end
 

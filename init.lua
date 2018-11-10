@@ -64,10 +64,22 @@ minetest.register_craft({
 })
 
 minetest.register_craft({
+	type = "fuel",
+	recipe = "vendor:vendor",
+	burntime = 80,
+})
+
+minetest.register_craft({
 	output = 'vendor:depositor',
 	recipe = {
                 {'default:wood', 'default:steel_ingot', 'default:wood'},
                 {'default:wood', 'default:steel_ingot', 'default:wood'},
                 {'default:wood', 'default:wood', 'default:wood'},
         }
+})
+
+minetest.register_craft({
+	type = "fuel",
+	recipe = "vendor:depositor",
+	burntime = 80,
 })
